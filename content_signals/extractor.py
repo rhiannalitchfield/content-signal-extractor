@@ -61,7 +61,7 @@ def _extract_toxicity(text: str) -> ToxicitySignals:
     score = 0.0
     if threat:      score += 0.40
     if slurs:       score += 0.30
-    if self_harm:   score += 0.20
+    if self_harm:   score += 0.40
     if aggression:  score += min(0.20, len(aggression) * 0.05)
     if sexual:      score += 0.10
     score = min(1.0, score)
