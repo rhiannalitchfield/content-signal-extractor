@@ -79,6 +79,7 @@ def _extract_toxicity(text: str) -> ToxicitySignals:
 
 def _extract_pii(text: str) -> PIISignals:
     emails = list(dict.fromkeys(EMAIL_RE.findall(text)))
+    text_no_emails = EMAIL_RE.sub(' ', text)  # keep email domains out of the URL list
     phones = []
     for m in PHONE_RE.finditer(text):
         raw = m.group(0).strip()
@@ -87,7 +88,7 @@ def _extract_pii(text: str) -> PIISignals:
             phones.append(raw)
     phones = list(dict.fromkeys(phones))
 
-    urls = list(dict.fromkeys(URL_RE.findall(text)))
+    urls = list(dict.fromkeys(URL_RE.findall(text_no_emails)))
     usernames = list(dict.fromkeys(USERNAME_RE.findall(text)))
     addresses = list(dict.fromkeys(ADDRESS_RE.findall(text)))
     has_ssn = bool(SSN_RE.search(text))
@@ -119,7 +120,10 @@ def _extract_pii(text: str) -> PIISignals:
 
 
 def _extract_urls(text: str) -> URLSignals:
-    urls = list(dict.fromkeys(URL_RE.findall(text)))
+    # Email addresses contain URL-shaped domains (jane@example.com -> example.com).
+    # Blank out emails first so we don't miscount those domains as real URLs.
+    text_no_emails = EMAIL_RE.sub(' ', text)
+    urls = list(dict.fromkeys(URL_RE.findall(text_no_emails)))
     total = len(urls)
     density = round((total / max(len(text), 1)) * 100, 4)
 
