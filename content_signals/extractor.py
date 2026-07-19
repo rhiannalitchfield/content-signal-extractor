@@ -21,6 +21,13 @@ from .patterns import (
 )
 
 
+# Bounds for the CIB heuristics, which scale super-linearly with input size.
+# Coordinated-inauthentic patterns are dense and show up early, so these caps
+# protect against pathological inputs without changing results on real posts.
+_CIB_MAX_SENTENCES = 200
+_CIB_MAX_WORDS = 5000
+
+
 # ---------------------------------------------------------------------------
 # Risk level helpers
 # ---------------------------------------------------------------------------
@@ -164,8 +171,12 @@ def _extract_urls(text: str) -> URLSignals:
 
 
 def _extract_cib(text: str) -> CIBSignals:
-    # Templated language: repeated sentence structure heuristic
+    # Templated language: repeated sentence structure heuristic.
+    # The pairwise trigram comparison below is O(n^2) in sentence count, so cap
+    # how many sentences we compare. Templated spam shows up in the first
+    # handful of sentences; scanning more just burns time on large inputs.
     sentences = [s.strip() for s in re.split(r'[.!?\n]', text) if len(s.strip()) > 10]
+    sentences = sentences[:_CIB_MAX_SENTENCES]
     templated = False
     if len(sentences) >= 3:
         # Check for high similarity via shared trigrams
@@ -181,8 +192,9 @@ def _extract_cib(text: str) -> CIBSignals:
                         templated = True
                         break
 
-    # Excessive repetition: same 3+ word phrase appears 3+ times
-    words = text.lower().split()
+    # Excessive repetition: same 3+ word phrase appears 3+ times. Cap the word
+    # window so a very long document doesn't build an enormous phrase counter.
+    words = text.lower().split()[:_CIB_MAX_WORDS]
     phrases = [' '.join(words[i:i+3]) for i in range(len(words)-2)]
     phrase_counts = Counter(phrases)
     excessive_rep = any(c >= 3 for c in phrase_counts.values())
